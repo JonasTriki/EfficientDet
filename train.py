@@ -322,9 +322,6 @@ def get_compiled_model(args, num_classes, num_anchors):
         for i in range(1, [227, 329, 329, 374, 464, 566, 656][args.phi]):
             model.layers[i].trainable = False
 
-    if args.gpu and len(args.gpu.split(',')) > 1:
-        model = keras.utils.multi_gpu_model(model, gpus=list(map(int, args.gpu.split(','))))
-
     # compile model
     model.compile(optimizer=Adam(lr=1e-3), loss={
         'regression': smooth_l1_quad() if args.detect_quadrangle else smooth_l1(),
