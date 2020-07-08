@@ -378,7 +378,7 @@ def main(args=None):
 
     # start training
     return model.fit(
-        generator=train_generator,
+        x=train_generator,
         steps_per_epoch=args.steps,
         initial_epoch=0,
         epochs=args.epochs,
