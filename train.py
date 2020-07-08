@@ -82,7 +82,6 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
         tensorboard_callback = keras.callbacks.TensorBoard(
             log_dir=args.tensorboard_dir,
             histogram_freq=0,
-            batch_size=args.batch_size,
             write_graph=True,
             write_grads=False,
             write_images=False,
@@ -351,7 +350,8 @@ def main(args=None):
     # use multiple GPUs if specified
     multi_gpu = args.gpu and len(args.gpu.split(',')) > 1
     if multi_gpu:
-        strategy = MirroredStrategy()
+        gpus_str = [f'/gpu:{i}' for i in args.gpu.split(',')]
+        strategy = MirroredStrategy(devices=gpus_str)
         print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
 
         with strategy.scope():
@@ -377,7 +377,7 @@ def main(args=None):
         raise ValueError('When you have no validation data, you should not specify --compute-val-loss.')
 
     # start training
-    return model.fit_generator(
+    return model.fit(
         generator=train_generator,
         steps_per_epoch=args.steps,
         initial_epoch=0,
