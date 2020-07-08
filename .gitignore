@@ -113,3 +113,10 @@ tests/
 *test-dev*
 val2017*
 *.txt
+
+# Pipenv
+Pipfile
+Pipfile.lock
+
+# Utils
+utils/compute_overlap.c

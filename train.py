@@ -29,6 +29,8 @@ from tensorflow import keras
 import tensorflow.keras.backend as K
 from tensorflow.keras.optimizers import Adam, SGD
 
+from tensorflow.distribute import MirroredStrategy
+
 from augmentor.color import VisualEffect
 from augmentor.misc import MiscEffect
 from model import efficientdet
@@ -291,25 +293,7 @@ def parse_args(args):
     print(vars(parser.parse_args(args)))
     return check_args(parser.parse_args(args))
 
-
-def main(args=None):
-    # parse arguments
-    if args is None:
-        args = sys.argv[1:]
-    args = parse_args(args)
-
-    # create the generators
-    train_generator, validation_generator = create_generators(args)
-
-    num_classes = train_generator.num_classes()
-    num_anchors = train_generator.num_anchors
-
-    # optionally choose specific GPU
-    if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-
-    # K.set_session(get_session())
-
+def get_compiled_model(args, num_classes, num_anchors):
     model, prediction_model = efficientdet(args.phi,
                                            num_classes=num_classes,
                                            num_anchors=num_anchors,
@@ -346,6 +330,39 @@ def main(args=None):
         'regression': smooth_l1_quad() if args.detect_quadrangle else smooth_l1(),
         'classification': focal()
     }, )
+
+    return model, prediction_model
+
+def main(args=None):
+    # parse arguments
+    if args is None:
+        args = sys.argv[1:]
+    args = parse_args(args)
+
+    # create the generators
+    train_generator, validation_generator = create_generators(args)
+
+    num_classes = train_generator.num_classes()
+    num_anchors = train_generator.num_anchors
+
+    # optionally choose specific GPU
+    if args.gpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+
+    # K.set_session(get_session())
+
+    # use multiple GPUs if specified
+    multi_gpu = args.gpu and len(args.gpu.split(',')) > 1
+    if multi_gpu:
+        strategy = MirroredStrategy()
+        print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+        with strategy.scope():
+            # everything that creates variables should be under the strategy scope.
+            # in general this is only model construction & `compile()`.
+            model, prediction_model = get_compiled_model(args, num_classes, num_anchors)
+    else:
+        model, prediction_model = get_compiled_model(args, num_classes, num_anchors)
 
     # print(model.summary())
 
